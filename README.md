@@ -8,3 +8,5 @@ Running this python file will automatically fetch your LeetCode submissions and 
 At the meantime, this program offers the function of generating a TOC file, containing links to all the codes you saved before. To apply this usage, you need to assign the `tocPrefix` param.
 
 The `sid` file it created is used to rule out of the formerly finished codes. Never mind about it.
+
+[This](https://github.com/SMartQi/LeetCode) is my repo generated from this program.

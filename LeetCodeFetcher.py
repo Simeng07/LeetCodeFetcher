@@ -6,9 +6,11 @@ import json, os, requests, subprocess
 from datetime import datetime
 
 cookie = ''
-tocPrefix = 'https://github.com/SMartQi/Leetcode/code/'
-codeDir = '../../Leetcode/'
+tocPrefix = 'https://github.com/SMartQi/LeetCode/blob/master/Code/'
+codeDir = '../../LeetCode/'
+codePath = codeDir + 'Code' # your own folder
 hasAdded = set()
+toBeSubmit = []
 count = 0
 
 def fetchProblems():
@@ -29,6 +31,17 @@ def fetchProblems():
 			# submissions that have been handled before
 			break
 
+	for submit in reversed(toBeSubmit):
+		# add and submit, but not push
+		title = submit["title"]
+		modifiedTitle = title.replace(" ", "-")
+		date = submit["date"]
+		addCmd = 'git add "' + modifiedTitle + '.cpp"'
+		subprocess.check_call(addCmd, shell = True, cwd = codePath)
+		commitCmd = 'git commit --date="' + date + '" -m "' + title + '"'
+		subprocess.check_call(commitCmd, shell = True, cwd = codePath)
+
+
 def handleProblem(submissions):
 	submissions_dump = submissions['submissions_dump']
 	lastKey = submissions['last_key']
@@ -39,6 +52,7 @@ def handleProblem(submissions):
 			# get params
 			title = submission['title']
 			modifiedTitle = title.replace(" ", "-")
+			global hasAdded
 			if modifiedTitle in hasAdded:
 				continue
 
@@ -47,7 +61,6 @@ def handleProblem(submissions):
 			timestamp = submission['timestamp']
 			code = submission['code']
 
-			codePath = codeDir + 'Code' # your own folder
 			filetitle = codePath + '/' + modifiedTitle + '.cpp'
 
 			# insert the problem into TOC
@@ -63,26 +76,22 @@ def handleProblem(submissions):
 						# nothing changed
 						continue
 
+			# generate code file
+			if not os.path.exists(codePath):
+				os.makedirs(codePath)
+			with open(filetitle, encoding = 'utf-8', mode = 'w+') as submission_file:
+				submission_file.write(code)
+
 			global count
 			count += 1
 			print(count)
 
-			global hasAdded
 			hasAdded.add(modifiedTitle)
 
-			# generate code file
-			if not os.path.exists(codePath):
-				os.makedirs(codePath)
-
-			with open(filetitle, encoding = 'utf-8', mode = 'w+') as submission_file:
-				submission_file.write(code)
-			
-			# submit
-			addCmd = 'git add "' + modifiedTitle + '.cpp"'
-			subprocess.check_call(addCmd, shell = True, cwd = codePath)
+			# ready to submit
 			date = str(datetime.fromtimestamp(timestamp).strftime('%b %d %H:%M:%S %Y')) + ' +0800' # your own timezone
-			commitCmd = 'git commit --date="' + date + '" -m "' + title + '"'
-			subprocess.check_call(commitCmd, shell = True, cwd = codePath)
+			global toBeSubmit
+			toBeSubmit.append({"title": title, "date": date})
 
 	return lastKey
 
@@ -98,7 +107,7 @@ def insertProblemIndex(sid, problem):
 		f.write(sid + '\n')
 
 	# TOC
-	problem = '[' + problem + '](' + tocPrefix + problem + '.cpp) '
+	problem = '[' + problem + '](' + tocPrefix + problem + '.cpp)  '
 	TOCFileName = codeDir + 'TOC.md'
 	if os.path.exists(TOCFileName):
 		with open(TOCFileName, encoding = 'utf-8', mode = 'r') as f:
