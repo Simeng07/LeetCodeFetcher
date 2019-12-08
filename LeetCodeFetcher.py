@@ -102,7 +102,7 @@ def insertProblemIndex(sid, problem):
 		with open(sidFileName, encoding = 'utf-8', mode = 'r') as f:
 			result = f.read().split('\n')
 			if sid in result:
-				return False
+				return -1
 	with open(sidFileName, encoding = 'utf-8', mode = 'a+') as f:
 		f.write(sid + '\n')
 
