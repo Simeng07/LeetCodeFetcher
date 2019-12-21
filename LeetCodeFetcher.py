@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # Author: Simeng
 
-import json, os, requests, subprocess
+import json, os, requests, subprocess, argparse
 from datetime import datetime
 
-cookie = ''
+FILE_EXTENSION = {'cpp': 'cc'}
 tocPrefix = 'https://github.com/SMartQi/LeetCode/blob/master/Code/'
 codeDir = '../../LeetCode/'
 codePath = codeDir + 'Code' # your own folder
@@ -13,23 +13,34 @@ hasAdded = set()
 toBeSubmit = []
 count = 0
 
-def fetchProblems():
+def fetchProblems(options):
+    cookie=options.cookie
+    codePath=options.code_path
+    maxSubmissions=options.max_submissions
     lastkey = ''
     offset = 0
+    remainSubmissions=maxSubmissions
 
-    while True:
-        url = 'https://leetcode.com/api/submissions/?offset=' + str(offset) + '&limit=20&lastkey=' + lastkey
+    while remainSubmissions > 0:
+        submissionPerPage = 20
+        if(remainSubmissions < 20):
+            submissionPerPage = remainSubmissions
+        url = 'https://leetcode.com/api/submissions/?offset=' + \
+            str(offset) + '&limit=' + str(submissionPerPage) + '&lastkey=' + lastkey
+        print(url)
         headers = {
-            'X-Requested-With' : 'XMLHttpRequest',
-            'Cookie' : cookie
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cookie': cookie
         }
 
-        result = requests.get(url, headers = headers)
-        lastkey = handleProblem(json.loads(result.text))
+        result = requests.get(url, headers=headers)
+        print(result.text)
+        lastkey = handleProblem(json.loads(result.text), options)
         offset += 20
         if len(lastkey) == 0:
             # submissions that have been handled before
             break
+        remainSubmissions -= submissionPerPage
 
     for submit in reversed(toBeSubmit):
         # add and submit, but not push
@@ -42,7 +53,7 @@ def fetchProblems():
         subprocess.check_call(commitCmd, shell = True, cwd = codePath)
 
 
-def handleProblem(submissions):
+def handleProblem(submissions, options):
     submissions_dump = submissions['submissions_dump']
     lastKey = submissions['last_key']
 
@@ -61,20 +72,25 @@ def handleProblem(submissions):
             timestamp = submission['timestamp']
             code = submission['code']
 
-            filetitle = codePath + '/' + modifiedTitle + '.cpp'
+            if lang not in FILE_EXTENSION:
+                print('Skip '+title +
+                      ' because the submission\'s language is not supported.')
+                continue
+            filetitle = codePath + '/' + modifiedTitle + '.' + FILE_EXTENSION[lang]
 
-            # insert the problem into TOC
-            insertStatus = insertProblemIndex(str(sid), modifiedTitle)
-            if insertStatus == -1:
-                # has handeled this very submission
-                return ''
-            if insertStatus == 1:
-                # has handled the same problem
-                with open(filetitle, encoding = 'utf-8', mode = 'r') as submission_file:
-                    oldSubmission = f.read()
-                    if oldSubmission == code:
-                        # nothing changed
-                        continue
+            if not options.skipToc:
+                # insert the problem into TOC
+                insertStatus = insertProblemIndex(str(sid), modifiedTitle)
+                if insertStatus == -1:
+                    # has handeled this very submission
+                    return ''
+                if insertStatus == 1:
+                    # has handled the same problem
+                    with open(filetitle, encoding = 'utf-8', mode = 'r') as submission_file:
+                        oldSubmission = f.read()
+                        if oldSubmission == code:
+                            # nothing changed
+                            continue
 
             # generate code file
             if not os.path.exists(codePath):
@@ -136,4 +152,13 @@ def insertProblemIndex(sid, problem):
     return 0
 
 if __name__ == '__main__':
-    fetchProblems()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--cookie', required=True,
+                        help='Cookie for authentication.')
+    parser.add_argument('--code_path', required=True,
+                        help='Specify the directory your code is stored. It should be placed in a git repository.')
+    parser.add_argument('--max_submissions', type=int, help='Max recent submissions being fetched.')
+    parser.add_argument('--skip_toc', default=False,
+                        help='Don\'t generate table of content.')
+    opts = parser.parse_args()
+    fetchProblems(opts)
