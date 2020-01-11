@@ -13,13 +13,22 @@ hasAdded = set()
 toBeSubmit = []
 count = 0
 
-def fetchProblems(options):
-    cookie=options.cookie
-    codePath=options.code_path
-    maxSubmissions=options.max_submissions
+def fetchProblems():
+    with open(filetitle, encoding = 'utf-8', mode = 'r') as problemFile:
+        problemList=problemFile.read()
+        problemJson=json.loads(problemList)
+        problemDic={}
+        for problem in problemJson['stat_status_pairs']:
+            problemDic[problem['stat']['question__title']]={id: problem['stat']['id'], fileName:problem['stat']['question__title_slug']}
+        return problemDic
+
+def fetchSubmissions(options):
+    cookie = options.cookie
+    codePath = options.code_path
+    maxSubmissions = options.max_submissions
     lastkey = ''
     offset = 0
-    remainSubmissions=maxSubmissions
+    remainSubmissions = maxSubmissions
 
     while remainSubmissions > 0:
         submissionPerPage = 20
@@ -157,8 +166,8 @@ if __name__ == '__main__':
                         help='Cookie for authentication.')
     parser.add_argument('--code_path', required=True,
                         help='Specify the directory your code is stored. It should be placed in a git repository.')
-    parser.add_argument('--max_submissions', type=int, help='Max recent submissions being fetched.')
+    parser.add_argument('--max_submissions', type=int, help='Max recent submissions being fetched, includes failed submissions.')
     parser.add_argument('--skip_toc', default=False,
                         help='Don\'t generate table of content.')
     opts = parser.parse_args()
-    fetchProblems(opts)
+    fetchSubmissions(opts)
