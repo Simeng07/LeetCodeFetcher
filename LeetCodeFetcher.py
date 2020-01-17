@@ -7,28 +7,48 @@ from datetime import datetime
 
 FILE_EXTENSION = {'cpp': 'cc'}
 tocPrefix = 'https://github.com/SMartQi/LeetCode/blob/master/Code/'
-codeDir = '../../LeetCode/'
-codePath = codeDir + 'Code' # your own folder
 hasAdded = set()
 toBeSubmit = []
 count = 0
 
-def fetchProblems():
-    with open(filetitle, encoding = 'utf-8', mode = 'r') as problemFile:
-        problemList=problemFile.read()
-        problemJson=json.loads(problemList)
-        problemDic={}
-        for problem in problemJson['stat_status_pairs']:
-            problemDic[problem['stat']['question__title']]={id: problem['stat']['id'], fileName:problem['stat']['question__title_slug']}
-        return problemDic
 
-def fetchSubmissions(options):
+class ProblemInfo(object):
+    id = ''
+    fileName = ''
+
+    def __init__(self, id, fileName):
+        self.id = id
+        self.fileName = fileName
+
+
+def fetchProblems():
+    ''' Return a dictionary. Key is the title, and value ProblemInfo. '''
+    with open('problems.json', encoding='utf-8', mode='r') as problemFile:
+        problemList = problemFile.read()
+        problemJson = json.loads(problemList)
+        problemMap = {}
+        for problem in problemJson['stat_status_pairs']:
+            problemMap[problem['stat']['question__title']] = ProblemInfo(
+                problem['stat']['question_id'], problem['stat']['question__title_slug'])
+        return problemMap
+
+
+def getFileName(title, problemInfoDict):
+    problemInfo = problemInfoDict[title]
+    return (str(problemInfo.id).zfill(4) + '-' + problemInfo.fileName + '.cc')
+
+
+def getCommitMessage(problemTitle, problemInfoDict):
+    problemInfo = problemInfoDict[problemTitle]
+    return ('LeetCode '+(str(problemInfo.id) + ': '+problemTitle+'.'))
+
+def fetchSubmissions(options, problemInfoDict):
     cookie = options.cookie
-    codePath = options.code_path
     maxSubmissions = options.max_submissions
     lastkey = ''
     offset = 0
     remainSubmissions = maxSubmissions
+    codePath = options.code_path
 
     while remainSubmissions > 0:
         submissionPerPage = 20
@@ -44,7 +64,7 @@ def fetchSubmissions(options):
 
         result = requests.get(url, headers=headers)
         print(result.text)
-        lastkey = handleProblem(json.loads(result.text), options)
+        lastkey = handleSubmissions(json.loads(result.text), options, problemInfoDict)
         offset += 20
         if len(lastkey) == 0:
             # submissions that have been handled before
@@ -54,15 +74,13 @@ def fetchSubmissions(options):
     for submit in reversed(toBeSubmit):
         # add and submit, but not push
         title = submit["title"]
-        modifiedTitle = title.replace(" ", "-")
         date = submit["date"]
-        addCmd = 'git add "' + modifiedTitle + '.cpp"'
-        subprocess.check_call(addCmd, shell = True, cwd = codePath)
-        commitCmd = 'git commit --date="' + date + '" -m "' + title + '"'
-        subprocess.check_call(commitCmd, shell = True, cwd = codePath)
+        subprocess.call(['git', 'add', getFileName(title, problemInfoDict)], cwd=codePath)
+        subprocess.call(['git', 'commit', '--date='+date, '-m', getCommitMessage(title, problemInfoDict)], cwd=codePath)
 
 
-def handleProblem(submissions, options):
+def handleSubmissions(submissions, options, problemInfoDict):
+    codePath = options.code_path
     submissions_dump = submissions['submissions_dump']
     lastKey = submissions['last_key']
 
@@ -71,7 +89,7 @@ def handleProblem(submissions, options):
         if statusDisplay == "Accepted":
             # get params
             title = submission['title']
-            modifiedTitle = title.replace(" ", "-")
+            modifiedTitle = getFileName(title, problemInfoDict)
             global hasAdded
             if modifiedTitle in hasAdded:
                 continue
@@ -85,9 +103,9 @@ def handleProblem(submissions, options):
                 print('Skip '+title +
                       ' because the submission\'s language is not supported.')
                 continue
-            filetitle = codePath + '/' + modifiedTitle + '.' + FILE_EXTENSION[lang]
+            filetitle = codePath + '/' + modifiedTitle
 
-            if not options.skipToc:
+            if not options.skip_toc:
                 # insert the problem into TOC
                 insertStatus = insertProblemIndex(str(sid), modifiedTitle)
                 if insertStatus == -1:
@@ -104,6 +122,7 @@ def handleProblem(submissions, options):
             # generate code file
             if not os.path.exists(codePath):
                 os.makedirs(codePath)
+            print('Trying to open '+filetitle)
             with open(filetitle, encoding = 'utf-8', mode = 'w+') as submission_file:
                 submission_file.write(code)
 
@@ -170,4 +189,5 @@ if __name__ == '__main__':
     parser.add_argument('--skip_toc', default=False,
                         help='Don\'t generate table of content.')
     opts = parser.parse_args()
-    fetchSubmissions(opts)
+    problemInfoDict = fetchProblems()
+    fetchSubmissions(opts, problemInfoDict)
