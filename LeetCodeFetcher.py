@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 # Author: Simeng
 
-import json, os, requests, subprocess, argparse
+import json
+import os
+import requests
+import subprocess
+import argparse
 from datetime import datetime
 
 FILE_EXTENSION = {'cpp': 'cc'}
@@ -46,6 +50,7 @@ def getCommitMessage(problemTitle, problemInfoDict):
     problemInfo = problemInfoDict[problemTitle]
     return ('LeetCode '+(str(problemInfo.id) + ': '+problemTitle+'.'))
 
+
 def fetchSubmissions(options, problemInfoDict):
     cookie = options.cookie
     maxSubmissions = options.max_submissions
@@ -59,14 +64,15 @@ def fetchSubmissions(options, problemInfoDict):
         if(remainSubmissions < 20):
             submissionPerPage = remainSubmissions
         url = 'https://leetcode.com/api/submissions/?offset=' + \
-            str(offset) + '&limit=' + str(submissionPerPage) + '&lastkey=' + lastkey
+            str(offset) + '&limit=' + \
+            str(submissionPerPage) + '&lastkey=' + lastkey
         headers = {
             'X-Requested-With': 'XMLHttpRequest',
             'Cookie': cookie
         }
         result = requests.get(url, headers=headers)
-        print(result.text)
-        lastkey = handleSubmissions(json.loads(result.text), options, problemInfoDict)
+        lastkey = handleSubmissions(json.loads(
+            result.text), options, problemInfoDict)
         offset += 20
         if len(lastkey) == 0:
             # submissions that have been handled before
@@ -77,8 +83,10 @@ def fetchSubmissions(options, problemInfoDict):
         # add and submit, but not push
         title = submit["title"]
         date = submit["date"]
-        subprocess.call(['git', 'add', getFileName(title, problemInfoDict)], cwd=codePath)
-        subprocess.call(['git', 'commit', '--date='+date, '-m', getCommitMessage(title, problemInfoDict)], cwd=codePath)
+        subprocess.call(['git', 'add', getFileName(
+            title, problemInfoDict)], cwd=codePath)
+        subprocess.call(['git', 'commit', '--date='+date, '-m',
+                         getCommitMessage(title, problemInfoDict)], cwd=codePath)
 
 
 def handleSubmissions(submissions, options, problemInfoDict):
@@ -115,7 +123,7 @@ def handleSubmissions(submissions, options, problemInfoDict):
                     return ''
                 if insertStatus == 1:
                     # has handled the same problem
-                    with open(filetitle, encoding = 'utf-8', mode = 'r') as submission_file:
+                    with open(filetitle, encoding='utf-8', mode='r') as submission_file:
                         oldSubmission = f.read()
                         if oldSubmission == code:
                             # nothing changed
@@ -124,39 +132,39 @@ def handleSubmissions(submissions, options, problemInfoDict):
             # generate code file
             if not os.path.exists(codePath):
                 os.makedirs(codePath)
-            print('Trying to open '+filetitle)
-            with open(filetitle, encoding = 'utf-8', mode = 'w+') as submission_file:
+            with open(filetitle, encoding='utf-8', mode='w+') as submission_file:
                 submission_file.write(code)
 
             global count
             count += 1
-            print(count)
 
             hasAdded.add(modifiedTitle)
 
             # ready to submit
-            date = str(datetime.fromtimestamp(timestamp).strftime('%b %d %H:%M:%S %Y')) + ' +0800' # your own timezone
+            date = str(datetime.fromtimestamp(timestamp).strftime(
+                '%b %d %H:%M:%S %Y')) + ' +0800'  # your own timezone
             global toBeSubmit
             toBeSubmit.append({"title": title, "date": date})
 
     return lastKey
 
+
 def insertProblemIndex(sid, problem):
     # sid
     sidFileName = codeDir + 'sid'
     if os.path.exists(sidFileName):
-        with open(sidFileName, encoding = 'utf-8', mode = 'r') as f:
+        with open(sidFileName, encoding='utf-8', mode='r') as f:
             result = f.read().split('\n')
             if sid in result:
                 return -1
-    with open(sidFileName, encoding = 'utf-8', mode = 'a+') as f:
+    with open(sidFileName, encoding='utf-8', mode='a+') as f:
         f.write(sid + '\n')
 
     # TOC
     problem = '[' + problem + '](' + tocPrefix + problem + '.cpp)  '
     TOCFileName = codeDir + 'TOC.md'
     if os.path.exists(TOCFileName):
-        with open(TOCFileName, encoding = 'utf-8', mode = 'r') as f:
+        with open(TOCFileName, encoding='utf-8', mode='r') as f:
             result = f.read().split('\n')
             if problem in result:
                 return 1
@@ -176,10 +184,11 @@ def insertProblemIndex(sid, problem):
                 result.insert(low, problem)
             problem = '\n'.join(result)
 
-    with open(TOCFileName, encoding = 'utf-8', mode = 'w+') as f:
+    with open(TOCFileName, encoding='utf-8', mode='w+') as f:
         f.write(problem)
 
     return 0
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -187,7 +196,8 @@ if __name__ == '__main__':
                         help='Cookie for authentication.')
     parser.add_argument('--code_path', required=True,
                         help='Specify the directory your code is stored. It should be placed in a git repository.')
-    parser.add_argument('--max_submissions', type=int, help='Max recent submissions being fetched, includes failed submissions.')
+    parser.add_argument('--max_submissions', type=int,
+                        help='Max recent submissions being fetched, includes failed submissions.')
     parser.add_argument('--skip_toc', default=False,
                         help='Don\'t generate table of content.')
     opts = parser.parse_args()
