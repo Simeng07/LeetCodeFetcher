@@ -21,16 +21,20 @@ class ProblemInfo(object):
         self.fileName = fileName
 
 
-def fetchProblems():
+def fetchProblems(cookie):
     ''' Return a dictionary. Key is the title, and value ProblemInfo. '''
-    with open('problems.json', encoding='utf-8', mode='r') as problemFile:
-        problemList = problemFile.read()
-        problemJson = json.loads(problemList)
-        problemMap = {}
-        for problem in problemJson['stat_status_pairs']:
-            problemMap[problem['stat']['question__title']] = ProblemInfo(
-                problem['stat']['question_id'], problem['stat']['question__title_slug'])
-        return problemMap
+    url = 'https://leetcode.com/api/problems/all/'
+    headers = {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Cookie': cookie
+    }
+    problemResponse = requests.get(url, headers=headers)
+    problemJson = json.loads(problemResponse.text)
+    problemMap = {}
+    for problem in problemJson['stat_status_pairs']:
+        problemMap[problem['stat']['question__title']] = ProblemInfo(
+            problem['stat']['question_id'], problem['stat']['question__title_slug'])
+    return problemMap
 
 
 def getFileName(title, problemInfoDict):
@@ -56,12 +60,10 @@ def fetchSubmissions(options, problemInfoDict):
             submissionPerPage = remainSubmissions
         url = 'https://leetcode.com/api/submissions/?offset=' + \
             str(offset) + '&limit=' + str(submissionPerPage) + '&lastkey=' + lastkey
-        print(url)
         headers = {
             'X-Requested-With': 'XMLHttpRequest',
             'Cookie': cookie
         }
-
         result = requests.get(url, headers=headers)
         print(result.text)
         lastkey = handleSubmissions(json.loads(result.text), options, problemInfoDict)
@@ -189,5 +191,5 @@ if __name__ == '__main__':
     parser.add_argument('--skip_toc', default=False,
                         help='Don\'t generate table of content.')
     opts = parser.parse_args()
-    problemInfoDict = fetchProblems()
+    problemInfoDict = fetchProblems(opts.cookie)
     fetchSubmissions(opts, problemInfoDict)
