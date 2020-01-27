@@ -139,7 +139,7 @@ if __name__ == '__main__':
                         help='Cookie for authentication.')
     parser.add_argument('--code_path', required=True,
                         help='Specify the directory your code is stored. It should be placed in a git repository.')
-    parser.add_argument('--max_submissions', type=int,
+    parser.add_argument('--max_submissions', type=int, default=20,
                         help='Max recent submissions being fetched, includes failed submissions.')
     opts = parser.parse_args()
     problemInfoDict = fetchProblems(opts.cookie)
