@@ -10,7 +10,6 @@ import argparse
 from datetime import datetime
 
 FILE_EXTENSION = {'cpp': 'cc'}
-tocPrefix = 'https://github.com/SMartQi/LeetCode/blob/master/Code/'
 hasAdded = set()
 toBeSubmit = []
 count = 0
@@ -115,20 +114,6 @@ def handleSubmissions(submissions, options, problemInfoDict):
                 continue
             filetitle = codePath + '/' + modifiedTitle
 
-            if not options.skip_toc:
-                # insert the problem into TOC
-                insertStatus = insertProblemIndex(str(sid), modifiedTitle)
-                if insertStatus == -1:
-                    # has handeled this very submission
-                    return ''
-                if insertStatus == 1:
-                    # has handled the same problem
-                    with open(filetitle, encoding='utf-8', mode='r') as submission_file:
-                        oldSubmission = f.read()
-                        if oldSubmission == code:
-                            # nothing changed
-                            continue
-
             # generate code file
             if not os.path.exists(codePath):
                 os.makedirs(codePath)
@@ -148,48 +133,6 @@ def handleSubmissions(submissions, options, problemInfoDict):
 
     return lastKey
 
-
-def insertProblemIndex(sid, problem):
-    # sid
-    sidFileName = codeDir + 'sid'
-    if os.path.exists(sidFileName):
-        with open(sidFileName, encoding='utf-8', mode='r') as f:
-            result = f.read().split('\n')
-            if sid in result:
-                return -1
-    with open(sidFileName, encoding='utf-8', mode='a+') as f:
-        f.write(sid + '\n')
-
-    # TOC
-    problem = '[' + problem + '](' + tocPrefix + problem + '.cpp)  '
-    TOCFileName = codeDir + 'TOC.md'
-    if os.path.exists(TOCFileName):
-        with open(TOCFileName, encoding='utf-8', mode='r') as f:
-            result = f.read().split('\n')
-            if problem in result:
-                return 1
-            # binary search
-            low = 0
-            high = len(result) - 1
-            middle = int(high / 2)
-            while low < middle:
-                if result[middle] < problem:
-                    low = middle + 1
-                else:
-                    high = middle
-                middle = low + int((high - low) / 2)
-            if result[low] < problem:
-                result.insert(low + 1, problem)
-            else:
-                result.insert(low, problem)
-            problem = '\n'.join(result)
-
-    with open(TOCFileName, encoding='utf-8', mode='w+') as f:
-        f.write(problem)
-
-    return 0
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cookie', required=True,
@@ -198,8 +141,6 @@ if __name__ == '__main__':
                         help='Specify the directory your code is stored. It should be placed in a git repository.')
     parser.add_argument('--max_submissions', type=int,
                         help='Max recent submissions being fetched, includes failed submissions.')
-    parser.add_argument('--skip_toc', default=False,
-                        help='Don\'t generate table of content.')
     opts = parser.parse_args()
     problemInfoDict = fetchProblems(opts.cookie)
     fetchSubmissions(opts, problemInfoDict)
