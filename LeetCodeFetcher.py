@@ -9,7 +9,7 @@ import subprocess
 import argparse
 from datetime import datetime
 
-FILE_EXTENSION = {'cpp': 'cc'}
+FILE_EXTENSION = {'cpp': 'cc', 'javascript':'js'}
 hasAdded = set()
 toBeSubmit = []
 count = 0
@@ -22,6 +22,21 @@ class ProblemInfo(object):
     def __init__(self, id, fileName):
         self.id = id
         self.fileName = fileName
+
+
+class SubmissionInfo(object):
+    id = ''
+    title = ''
+    language = ''
+    timestamp = ''
+    code = ''
+
+    def __init__(self, id, title, language, timestamp, code):
+        self.id = id
+        self.title = title
+        self.language = language
+        self.timestamp = timestamp
+        self.code = code
 
 
 def fetchProblems(cookie):
@@ -40,9 +55,11 @@ def fetchProblems(cookie):
     return problemMap
 
 
-def getFileName(title, problemInfoDict):
-    problemInfo = problemInfoDict[title]
-    return (str(problemInfo.id).zfill(4) + '-' + problemInfo.fileName + '.cc')
+def getFileName(submissionInfo, problemInfoDict):
+    problemInfo = problemInfoDict[submissionInfo.title]
+    if submissionInfo.language not in FILE_EXTENSION.keys():
+        raise Exception('Unsupported language.')
+    return (str(problemInfo.id).zfill(4) + '-' + problemInfo.fileName + '.' + FILE_EXTENSION[submissionInfo.language])
 
 
 def getCommitMessage(problemTitle, problemInfoDict):
@@ -78,14 +95,13 @@ def fetchSubmissions(options, problemInfoDict):
             break
         remainSubmissions -= submissionPerPage
 
-    for submit in reversed(toBeSubmit):
-        # add and submit, but not push
-        title = submit["title"]
-        date = submit["date"]
+    for submissionInfo in reversed(toBeSubmit):
+        date = str(submissionInfo.timestamp) + ' +0800'  # Your own timezone.
+        # Add and submit, but not push.
         subprocess.call(['git', 'add', getFileName(
-            title, problemInfoDict)], cwd=codePath)
+            submissionInfo, problemInfoDict)], cwd=codePath)
         subprocess.call(['git', 'commit', '--date='+date, '-m',
-                         getCommitMessage(title, problemInfoDict)], cwd=codePath)
+                         getCommitMessage(submissionInfo.title, problemInfoDict)], cwd=codePath)
 
 
 def handleSubmissions(submissions, options, problemInfoDict):
@@ -96,40 +112,28 @@ def handleSubmissions(submissions, options, problemInfoDict):
     for submission in submissions_dump:
         statusDisplay = submission['status_display']
         if statusDisplay == "Accepted":
-            # get params
-            title = submission['title']
-            modifiedTitle = getFileName(title, problemInfoDict)
+            # Get parameters.
+            submissionInfo = SubmissionInfo(submission['id'], submission['title'], submission['lang'], datetime.fromtimestamp(submission['timestamp']).strftime(
+                '%b %d %H:%M:%S %Y'), submission['code'])
+            modifiedTitle = getFileName(submissionInfo, problemInfoDict)
             global hasAdded
             if modifiedTitle in hasAdded:
                 continue
-
-            sid = submission['id']
-            lang = submission['lang']
-            timestamp = submission['timestamp']
-            code = submission['code']
-
-            if lang not in FILE_EXTENSION:
-                print('Skip '+title +
-                      ' because the submission\'s language is not supported.')
-                continue
             filetitle = codePath + '/' + modifiedTitle
 
-            # generate code file
+            # Generate code file.
             if not os.path.exists(codePath):
                 os.makedirs(codePath)
             with open(filetitle, encoding='utf-8', mode='w+') as submission_file:
-                submission_file.write(code)
+                submission_file.write(submissionInfo.code)
 
             global count
             count += 1
 
             hasAdded.add(modifiedTitle)
 
-            # ready to submit
-            date = str(datetime.fromtimestamp(timestamp).strftime(
-                '%b %d %H:%M:%S %Y')) + ' +0800'  # your own timezone
             global toBeSubmit
-            toBeSubmit.append({"title": title, "date": date})
+            toBeSubmit.append(submissionInfo)
 
     return lastKey
 
