@@ -9,7 +9,7 @@ import subprocess
 import argparse
 from datetime import datetime
 
-FILE_EXTENSION = {'cpp': 'cc', 'javascript':'js'}
+FILE_EXTENSION = {'cpp': 'cc', 'javascript':'js', 'python3':'py'}
 hasAdded = set()
 toBeSubmit = []
 count = 0
